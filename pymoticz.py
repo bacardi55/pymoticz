@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Usage:
-    pymoticz list [--host=<host>] [--names]
+    pymoticz list [--host=<host>] [--names|--idx] [--scenes]
     pymoticz test
     pymoticz status <id> [--host=<host>]
     pymoticz on <id> [--host=<host>]
@@ -32,9 +32,25 @@ class Pymoticz:
         l=self.list()
         return [device['Name'] for device in l['result']]
 
+    def list_idx(self):
+        l=self.list()
+        return ["%s\t%s" % (device['idx'], device['Name']) for device in l['result']]
+
     def list(self):
         url='http://%s/json.htm?type=devices&used=true' % self.host
         return self._request(url)
+
+    def list_scenes(self):
+        url='http://%s/json.htm?type=scenes&used=true' % self.host
+        return self._request(url)
+
+    def list_scenes_names(self):
+        l=self.list_scenes()
+        return [device['Name'] for device in l['result']]
+
+    def list_scenes_idx(self):
+        l=self.list_scenes()
+        return ["%s\t%s" % (device['idx'], device['Name']) for device in l['result']]
 
     def turn_on(self, _id):
         url='http://%s/json.htm?type=command&param=switchlight&idx=%s&switchcmd=On' % (self.host, _id)
@@ -42,6 +58,14 @@ class Pymoticz:
 
     def turn_off(self, _id):
         url='http://%s/json.htm?type=command&param=switchlight&idx=%s&switchcmd=Off&level=0' % (self.host, _id)
+        return self._request(url)
+
+    def turn_on_scene(self, _id):
+        url='http://%s/json.htm?type=command&param=switchscene&idx=%s&switchcmd=On' % (self.host, _id)
+        return self._request(url)
+
+    def turn_off_scene(self, _id):
+        url='http://%s/json.htm?type=command&param=switchscene&idx=%s&switchcmd=Off&level=0' % (self.host, _id)
         return self._request(url)
 
     def dim(self, _id, level):
@@ -86,10 +110,20 @@ if __name__ == '__main__':
         p=Pymoticz()
 
     if args['list']:
-        if args['--names']:
-            print('\n'.join(p.list_names()))
+        if args['--scenes']:
+            if args['--names']:
+                print('\n'.join(p.list_scenes_names()))
+            elif args['--idx']:
+                print('\n'.join(p.list_scenes_idx()))
+            else:
+                pprint(p.list_scenes())
         else:
-            pprint(p.list())
+            if args['--names']:
+                print('\n'.join(p.list_names()))
+            if args['--idx']:
+                print('\n'.join(p.list_idx()))
+            else:
+                pprint(p.list())
     elif args['status']:
         response = p.get_light_status(args['<id>'])
         print(response)
