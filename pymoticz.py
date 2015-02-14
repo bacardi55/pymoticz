@@ -6,6 +6,7 @@
     pymoticz on <id> [--host=<host>] [--scenes]
     pymoticz off <id> [--host=<host>] [--scenes]
     pymoticz dim <id> <level> [--host=<host>]
+    pymoticz getSun [--host=<host>]
 """
 import requests
 import json
@@ -87,6 +88,14 @@ class Pymoticz:
             return None
         return device
 
+    def get_scene(self, _id):
+        l=self.list_scenes()
+        try:
+            scene=[i for i in l['result'] if i['idx'] == u'%s' % _id][0]
+        except:
+            return None
+        return scene
+
     def get_light_status(self, _id):
         light = self.get_device(_id)
         if light is None:
@@ -98,6 +107,18 @@ class Pymoticz:
         elif light['SwitchType'] == self.ON_OFF:
             return "%s\t%s" % (light['Status'], 100)
 
+    def get_scene_status(self, _id):
+        scene = self.get_scene(_id)
+        if scene is None:
+            return 'No scene/group with that id.'
+        else:
+            return scene['Status']
+
+    def get_sun(self):
+        url='http://%s/json.htm?type=command&param=getSunRiseSet' % self.host
+        response = self._request(url)
+        return "%s\t%s" % (response['Sunrise'], response['Sunset'])
+
 if __name__ == '__main__':
     from docopt import docopt
     from pprint import pprint
@@ -108,6 +129,7 @@ if __name__ == '__main__':
         p=Pymoticz(args['--host'])
     else:
         p=Pymoticz()
+
 
     if args['list']:
         if args['--scenes']:
@@ -124,9 +146,14 @@ if __name__ == '__main__':
                 print('\n'.join(p.list_idx()))
             else:
                 pprint(p.list())
+
     elif args['status']:
-        response = p.get_light_status(args['<id>'])
+        if args['--scenes']:
+            response = p.get_scene_status(args['<id>'])
+        else:
+            response = p.get_light_status(args['<id>'])
         print(response)
+
     elif args['on']:
         if args['--scenes']:
             response = p.turn_on_scene(args['<id>'])
@@ -139,4 +166,9 @@ if __name__ == '__main__':
             response = p.turn_off(args['<id>'])
     elif args['dim']:
         response = p.dim(args['<id>'], args['<level>'])
+        print(response)
+
+
+    elif args['getSun']:
+        response = p.get_sun()
         print(response)
