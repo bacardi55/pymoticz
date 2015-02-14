@@ -2,9 +2,9 @@
 """Usage:
     pymoticz list [--host=<host>] [--names|--idx] [--scenes]
     pymoticz test
-    pymoticz status <id> [--host=<host>]
-    pymoticz on <id> [--host=<host>]
-    pymoticz off <id> [--host=<host>]
+    pymoticz status <id> [--host=<host>] [--scenes]
+    pymoticz on <id> [--host=<host>] [--scenes]
+    pymoticz off <id> [--host=<host>] [--scenes]
     pymoticz dim <id> <level> [--host=<host>]
 """
 import requests
@@ -94,9 +94,9 @@ class Pymoticz:
         if light['SwitchType'] not in self.SWITCH_TYPES:
             return 'Not a light switch'
         elif light['SwitchType'] == self.DIMMER:
-            return light['Level']
+            return "%s\t%s" % (light['Status'], light['Level'])
         elif light['SwitchType'] == self.ON_OFF:
-            return light['Status']
+            return "%s\t%s" % (light['Status'], 100)
 
 if __name__ == '__main__':
     from docopt import docopt
@@ -128,9 +128,15 @@ if __name__ == '__main__':
         response = p.get_light_status(args['<id>'])
         print(response)
     elif args['on']:
-        response = p.turn_on(args['<id>'])
+        if args['--scenes']:
+            response = p.turn_on_scene(args['<id>'])
+        else:
+            response = p.turn_on(args['<id>'])
     elif args['off']:
-        response = p.turn_off(args['<id>'])
+        if args['--scenes']:
+            response = p.turn_off_scene(args['<id>'])
+        else:
+            response = p.turn_off(args['<id>'])
     elif args['dim']:
         response = p.dim(args['<id>'], args['<level>'])
         print(response)
