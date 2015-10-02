@@ -7,6 +7,9 @@
     pymoticz off <id> [--host=<host>] [--scenes]
     pymoticz dim <id> <level> [--host=<host>]
     pymoticz getSun [--host=<host>]
+    pymoticz addSwitch
+    pymoticz getTimers <id> 
+    pymoticz addTimer <id> <time> <cmd>
 """
 import requests
 import json
@@ -28,6 +31,15 @@ class Pymoticz:
             return json.loads(r.text)
         else:
             raise
+
+    def list_hard_idx(self):
+        l=self.list_hard()
+        return ["%s\t%s" % (device['idx'], device['Name']) for device in l['result']]
+
+    def list_hard(self):
+        url='http://%s/json.htm?type=hardware' % self.host
+        return self._request(url)
+
 
     def list_names(self):
         l=self.list()
@@ -119,6 +131,67 @@ class Pymoticz:
         response = self._request(url)
         return "%s\t%s" % (response['Sunrise'], response['Sunset'])
 
+    def get_timers(self, _id):
+        url='http://%s/json.htm?type=timers&idx=%s' % (self.host, _id)
+        response = self._request(url)
+        if 'result' in response:
+            l=response
+            return ["%s\t%s\t%s" % (device['idx'], device['Time'], device['Cmd']) for device in l['result']]
+        else:
+            return "no timers for this id"
+
+            
+
+        
+    def add_timer(self, _id, time, cmd):
+        hour=time.split(":")[0]
+        min=time.split(":")[1]
+        if cmd.lower()== 'on' :
+            cmd = 0
+        else :
+            cmd = 1
+        url='http://%s/json.htm?type=command&param=addtimer&idx=%s&active=true&timertype=2&date=&hour=%s&min=%s&randomness=false&command=%s&level=100&hue=0&days=128' % (self.host, _id, hour, min, cmd)
+        response = self._request(url)
+        return response
+    
+
+    def get_dummy_id(self):
+        l=self.list_hard()
+        for device in l['result'] :
+           if device['Type'] == 15 :
+              return device['idx']
+        return 0
+
+    def get_dummy_switch(self):
+        url='http://%s/json.htm?type=devices&filter=light&used=false&order=LastUpdate' % self.host
+        l =self._request(url)
+        for device in l['result'] :
+            if device['Name'] == 'Unknown' :
+                return device['idx']
+        return 0
+
+
+    def add_switch(self):
+        # recupration dummyID
+       l=self.list_hard()
+       dummyId=self.get_dummy_id()
+       if dummyId != 0 :
+            url='http://%s/json.htm?type=createvirtualsensor&idx=%s&sensortype=6' % (self.host, dummyId)
+            response = self._request(url)
+            print "%s" %response
+            # we enable the switch
+            dummySwID=self.get_dummy_switch()
+            print "dummy switch : %s" %dummySwID
+            if dummySwID != 0 :
+                url='http://%s/json.htm?type=setused&idx=%s&name=dummy%s&used=true&maindeviceidx=' % (self.host, dummySwID, dummySwID)
+                response = self._request(url)
+            else :
+                print ("dummy switch created %s") % dummySwID
+       else :
+           print "ERROR : no dummy device found, create one before adding virtual switch"
+       print dummyId
+
+
 if __name__ == '__main__':
     from docopt import docopt
     from pprint import pprint
@@ -168,7 +241,18 @@ if __name__ == '__main__':
         response = p.dim(args['<id>'], args['<level>'])
         print(response)
 
+    elif args['addSwitch']:
+        p.add_switch()
 
     elif args['getSun']:
         response = p.get_sun()
         print(response)
+    
+    elif args['getTimers']:
+        print ("0 = ON, 1 = OFF")
+        print ('idTimer\ttime\tcmd')
+        print('\n'.join(p.get_timers(args['<id>'])))
+    
+    elif args['addTimer']:
+        response = p.add_timer(args['<id>'], args['<time>'], args['<cmd>'])
+        print response
