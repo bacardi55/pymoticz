@@ -10,12 +10,37 @@
     pymoticz addSwitch
     pymoticz getTimers <id> 
     pymoticz addTimer <id> <time> <cmd>
+    pymoticz addDummy <type>
 """
 import requests
 import json
 
 __all__ = [ 'Pymoticz' ]
 __version__ = '0.1'
+
+#dummyTypes :[Type,SubType, friendly name]
+dummyTypes = {
+    1 : ['General','Pressure', 'pressure'],
+    2 : ['General','Percentage','percentage'],
+    3 : ['P1 Smart Meter','Gas','gas'],
+    4 : ['General','Voltage','voltage'],
+    5 : ['General','Text','text'],
+    6: ['Lighting 2','AC','switch'],
+    7 : ['General','Alert','alert'],
+    8 : ['Thermostat','SetPoint','thermostat'],
+    9 : ['Current','CM113, Electrisave','current'],
+    10 : ['General','Sound Level','sound level'],
+    11 : ['General','Barometer','barometer'],
+    12 : ['General','Visibility','visibility'],
+    13 : ['General','Distance','distance'],
+    14 : ['General','Counter Incremental','counter'],
+    15 : ['General','Soil Moisture','soil moisture'],
+    16 : ['General','Leaf Wetness','leaf wetness'],
+    17 : ['General','Thermostat Clock','thermostat clock'],
+    18 : ['General','kWh','power usage'],
+    250 : ['P1 Smart Meter','Energy','p1']
+    }
+
 
 class Pymoticz:
     DIMMER = u'Dimmer'
@@ -24,6 +49,13 @@ class Pymoticz:
     def __init__(self, domoticz_host='127.0.0.1:8080'):
         self.host = domoticz_host
 
+    def getSensorID (self,type):
+        for id, tuples in dummyTypes.items():
+            if tuples[2] == type:
+                return id
+            
+        return 0
+        
     def _request(self, url):
         r=requests.get(url)
 
@@ -169,27 +201,53 @@ class Pymoticz:
             if device['Name'] == 'Unknown' :
                 return device['idx']
         return 0
+        
+    def get_dummy_device_id(self, id):
+        url='http://%s/json.htm?type=devices&filter=all&used=false&order=Name' % self.host
+        l =self._request(url)
+        for device in l['result'] :
+            if device ['SubType'] == dummyTypes[id][1] :
+                if device['Name'] == 'Unknown' :
+                    return device['idx']
 
+        return 0
 
+    def addVirtualSensor (self, type):
+       l=self.list_hard()
+       dummyId=self.get_dummy_id()
+       if dummyId != 0 :
+            url='http://%s/json.htm?type=createvirtualsensor&idx=%s&sensortype=%s' % (self.host, dummyId, type)
+            response = self._request(url)
+            # we enable the dummy
+            dummySwID=self.get_dummy_device_id(type)
+            if dummySwID != 0 :
+                url='http://%s/json.htm?type=setused&idx=%s&name=dummy%s&used=true&maindeviceidx=' % (self.host, dummySwID, dummySwID)
+                response = self._request(url)
+                return dummySwID
+            else :
+                print ("ERROR")
+       else :
+           print "ERROR : no dummy device found, create one before adding virtual switch"
+           return 0
+        
+        
     def add_switch(self):
-        # recupration dummyID
        l=self.list_hard()
        dummyId=self.get_dummy_id()
        if dummyId != 0 :
             url='http://%s/json.htm?type=createvirtualsensor&idx=%s&sensortype=6' % (self.host, dummyId)
             response = self._request(url)
-            print "%s" %response
             # we enable the switch
             dummySwID=self.get_dummy_switch()
-            print "dummy switch : %s" %dummySwID
             if dummySwID != 0 :
                 url='http://%s/json.htm?type=setused&idx=%s&name=dummy%s&used=true&maindeviceidx=' % (self.host, dummySwID, dummySwID)
                 response = self._request(url)
             else :
-                print ("dummy switch created %s") % dummySwID
+                print ("ERROR")
        else :
            print "ERROR : no dummy device found, create one before adding virtual switch"
-       print dummyId
+         
+
 
 
 if __name__ == '__main__':
@@ -239,10 +297,26 @@ if __name__ == '__main__':
             response = p.turn_off(args['<id>'])
     elif args['dim']:
         response = p.dim(args['<id>'], args['<level>'])
-        print(response)
-
+        print (response)
+        
     elif args['addSwitch']:
         p.add_switch()
+        
+
+    elif args['addDummy']:
+        sensorID = p.getSensorID(args['<type>'])
+        if sensorID == 0 :
+            print "%s is not a valid type. Choose :" % args['<type>']
+            for x in dummyTypes.viewvalues() :
+                print x[2]
+        else :    
+
+            response = p.addVirtualSensor(sensorID)
+            if response != 0 :
+                print "dummy device %s created" %response
+            else :
+                print "error with dummy device creation"
+        
 
     elif args['getSun']:
         response = p.get_sun()
