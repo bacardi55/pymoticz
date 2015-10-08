@@ -38,6 +38,7 @@ dummyTypes = {
     16 : ['General','Leaf Wetness','leaf wetness'],
     17 : ['General','Thermostat Clock','thermostat clock'],
     18 : ['General','kWh','power usage'],
+    241 : ['Lighting Limitless/Applamp','RGB','rgb'],
     250 : ['P1 Smart Meter','Energy','p1']
     }
 
@@ -79,7 +80,7 @@ class Pymoticz:
 
     def list_idx(self):
         l=self.list()
-        return ["%s\t%s (%s-%s)\n" % (device['idx'], device['Name'], device['Type'], device['SubType']) for device in l['result']]
+        return ["%s\t%s (%s-%s)" % (device['idx'], device['Name'], device['Type'], device['SubType']) for device in l['result']]
 
     def list(self):
         url='http://%s/json.htm?type=devices&used=true' % self.host
