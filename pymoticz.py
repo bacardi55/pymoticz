@@ -205,7 +205,7 @@ class Pymoticz:
             l=response
             return ["%s\t%s\t%s" % (device['idx'], device['Time'], device['Cmd']) for device in l['result']]
         else:
-            return "no timers for this id"
+            return 0
         
     def add_timer(self, _id, time, cmd):
         hour=time.split(":")[0]
@@ -339,9 +339,12 @@ if __name__ == '__main__':
         print(response)
     
     elif args['listTimers']:
-        print ("0 = ON, 1 = OFF")
-        print ('idTimer\ttime\tcmd')
-        print('\n'.join(p.get_timers(args['<id>'])))
+        if (p.get_timers(args['<id>'])) == 0 :
+            print "no timers configured for this device"
+        else :
+            print ("0 = ON, 1 = OFF")
+            print ('idTimer\ttime\tcmd')
+            print('\n'.join(p.get_timers(args['<id>'])))
     
     elif args['addTimer']:
         response = p.add_timer(args['<id>'], args['<time>'], args['<cmd>'])
