@@ -11,6 +11,11 @@
     pymoticz addTimer <id> <time> <cmd>
     pymoticz addDummy <type>
     pymoticz log <id>
+    pymoticz rename <id> <name>
+    pymoticz delete <id>
+    pymoticz setCounter <id> <value>
+    pymoticz changeCounterType <id> <type>
+    
 """
 import requests
 import json
@@ -42,7 +47,16 @@ dummyTypes = {
     250 : ['P1 Smart Meter','Energy','p1']
     }
 
-
+    
+counterTypes = {
+    0 : 'energy',
+    1 : 'gas',
+    2 : 'water',
+    3 : 'coutner',
+    4 : 'energy generated'
+    }
+    
+    
 class Pymoticz:
     DIMMER = u'Dimmer'
     ON_OFF = u'On/Off'
@@ -125,6 +139,12 @@ class Pymoticz:
         url='http://%s/json.htm?type=command&param=switchlight&idx=%s&switchcmd=Set Level&level=%s' % (self.host, _id, level)
         return self._request(url)
 
+        #@TODO
+    def set_counter (self, _id, _value):
+        url='http://%s/json.htm?type=command&param=getSunRiseSet' % self.host
+        response = self._request(url)
+        return response
+        
     def get_device(self, _id):
         l=self.list()
         try:
@@ -173,7 +193,11 @@ class Pymoticz:
         else:
             return 0
             
-
+    def rename (self, _id, _name):
+        url='http://%s/json.htm?type=command&param=renamedevice&idx=%s&name=%s' % (self.host, _id, _name)
+        response = self._request(url)
+        return response
+            
     def get_timers(self, _id):
         url='http://%s/json.htm?type=timers&idx=%s' % (self.host, _id)
         response = self._request(url)
@@ -182,9 +206,6 @@ class Pymoticz:
             return ["%s\t%s\t%s" % (device['idx'], device['Time'], device['Cmd']) for device in l['result']]
         else:
             return "no timers for this id"
-
-            
-
         
     def add_timer(self, _id, time, cmd):
         hour=time.split(":")[0]
@@ -197,7 +218,12 @@ class Pymoticz:
         response = self._request(url)
         return response
     
-
+    
+    def delete (self, _id):
+        url='http://%s/json.htm?type=deletedevice&idx=%s' % (self.host, _id)
+        response = self._request(url)
+        return response
+    
     def get_dummy_id(self):
         l=self.list_hard()
         for device in l['result'] :
@@ -320,6 +346,18 @@ if __name__ == '__main__':
     elif args['addTimer']:
         response = p.add_timer(args['<id>'], args['<time>'], args['<cmd>'])
         print response
+
+    elif args['delete']:
+        response = p.delete(args['<id>'])
+        print "OK, device %s deleted" % (args['<id>'])
+
+    elif args['setCounter']:
+        response = p.set_counter(args['<id>'], args['<value>'])
+        print response
+    
+    elif args['rename']:
+        response = p.rename(args['<id>'], args['<name>'])
+        print "OK, device %s renamed to %s" % (args['<id>'], args['<name>'])
         
     elif args ['log']:
         device = args['<id>']
