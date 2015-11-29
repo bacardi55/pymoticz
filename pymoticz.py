@@ -15,7 +15,7 @@
     pymoticz delete <id>
     pymoticz setCounter <id> <value>
     pymoticz changeCounterType <id> <type>
-    
+    pymoticz increment <id> 
 """
 import requests
 import json
@@ -43,6 +43,7 @@ dummyTypes = {
     16 : ['General','Leaf Wetness','leaf wetness'],
     17 : ['General','Thermostat Clock','thermostat clock'],
     18 : ['General','kWh','power usage'],
+    80 : ['Temp','THR128/138, THC138','temperature'],
     241 : ['Lighting Limitless/Applamp','RGB','rgb'],
     250 : ['P1 Smart Meter','Energy','p1']
     }
@@ -56,7 +57,13 @@ counterTypes = {
     4 : 'energy generated'
     }
     
-    
+def printResponse (_response, _OK, _ERR):
+    if _response['status'] == 'OK':
+        print _OK
+    else:
+        print _ERR
+
+
 class Pymoticz:
     DIMMER = u'Dimmer'
     ON_OFF = u'On/Off'
@@ -87,6 +94,9 @@ class Pymoticz:
         url='http://%s/json.htm?type=hardware' % self.host
         return self._request(url)
 
+    def data_idx(self,_id):
+        url='http://%s/json.htm?type=devices&rid=%s' %(self.host, _id)
+        return self._request(url)
 
     def list_names(self):
         l=self.list()
@@ -139,12 +149,22 @@ class Pymoticz:
         url='http://%s/json.htm?type=command&param=switchlight&idx=%s&switchcmd=Set Level&level=%s' % (self.host, _id, level)
         return self._request(url)
 
-        #@TODO
     def set_counter (self, _id, _value):
-        url='http://%s/json.htm?type=command&param=getSunRiseSet' % self.host
+        url='http://%s/json.htm?type=command&param=udevice&idx=%s&nvalue=%s' % (self.host, _id, _value)
         response = self._request(url)
         return response
-        
+   
+    def increment_counter (self, _id):
+        l=self.data_idx(_id)
+        actualValue = [device['Data'] for device in l['result']][0]
+        actualValue = int (actualValue)
+        actualValue+=1
+        url='http://%s/json.htm?type=command&param=udevice&idx=%s&nvalue=%s' % (self.host, _id, actualValue)
+        response = self._request(url)
+        printResponse(response, "value of device %s changed to %s" % (_id, actualValue), "ERROR")
+        return response
+
+
     def get_device(self, _id):
         l=self.list()
         try:
@@ -182,7 +202,10 @@ class Pymoticz:
     def get_sun(self):
         url='http://%s/json.htm?type=command&param=getSunRiseSet' % self.host
         response = self._request(url)
-        return "%s\t%s" % (response['Sunrise'], response['Sunset'])
+        if response['status'] == 'ERR':
+            return "ERROR can't get sun informations"
+        else:
+            return "%s\t%s" % (response['Sunrise'], response['Sunset'])
 
     def get_logs(self, _id):
         url='http://%s/json.htm?type=textlog&idx=%s' % (self.host, _id)
@@ -356,7 +379,12 @@ if __name__ == '__main__':
 
     elif args['setCounter']:
         response = p.set_counter(args['<id>'], args['<value>'])
-        print response
+        printResponse(response,  "OK: device %s set to %s" % (args['<id>'],  args['<value>']), "ERROR: can't update the device")
+        #print response
+
+    elif args['increment']:
+        response = p.increment_counter(args['<id>'])
+        #print (response)
     
     elif args['rename']:
         response = p.rename(args['<id>'], args['<name>'])
